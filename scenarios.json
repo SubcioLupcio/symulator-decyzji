@@ -5,66 +5,186 @@
       "biuro_start": {
         "text": "Dostajesz pierwszego dużego klienta. Składa trudną propozycję: szybki termin i niska cena.",
         "choices": [
-          {"label":"Biorę, jadę po portfolio","effects":{"finanse":5,"stres":3,"reputacja":2},"next":"deadline"},
-          {"label":"Negocjuję warunki","effects":{"finanse":2,"stres":1,"reputacja":3},"next":"negocjacje"},
-          {"label":"Odrzucam – za duże ryzyko","effects":{"finanse":-1,"stres":-1,"reputacja":1},"next":"spokojny_tydzien"}
+          {
+            "label": "Biorę, jadę po portfolio",
+            "effects": {
+              "finanse": 5,
+              "stres": 3,
+              "reputacja": 2
+            },
+            "next": "deadline"
+          },
+          {
+            "label": "Negocjuję warunki",
+            "effects": {
+              "finanse": 2,
+              "stres": 1,
+              "reputacja": 3
+            },
+            "next": "negocjacje"
+          },
+          {
+            "label": "Odrzucam – za duże ryzyko",
+            "effects": {
+              "finanse": -1,
+              "stres": -1,
+              "reputacja": 1
+            },
+            "next": "spokojny_tydzien"
+          }
         ]
       },
       "deadline": {
         "text": "Termin goni. Pracujesz nocami. Zespół jest zmęczony.",
         "choices": [
-          {"label":"Dowozimy kosztem jakości","effects":{"reputacja":-3,"finanse":3,"stres":2},"next":"feedback"},
-          {"label":"Przesuwam termin i biorę ogień na klatę","effects":{"reputacja":1,"finanse":0,"stres":1},"next":"feedback"}
+          {
+            "label": "Dowozimy kosztem jakości",
+            "effects": {
+              "reputacja": -3,
+              "finanse": 3,
+              "stres": 2
+            },
+            "next": "feedback"
+          },
+          {
+            "label": "Przesuwam termin i biorę ogień na klatę",
+            "effects": {
+              "reputacja": 1,
+              "finanse": 0,
+              "stres": 1
+            },
+            "next": "feedback"
+          }
         ]
       },
       "negocjacje": {
         "text": "Klient zgadza się na +15% i dzień więcej.",
         "choices": [
-          {"label":"Biorę i planuję sprint z buforem","effects":{"finanse":4,"reputacja":2,"stres":1},"next":"feedback"}
+          {
+            "label": "Biorę i planuję sprint z buforem",
+            "effects": {
+              "finanse": 4,
+              "reputacja": 2,
+              "stres": 1
+            },
+            "next": "feedback"
+          }
         ]
       },
       "spokojny_tydzien": {
         "text": "Masz czas na procesy i sprzedaż. Trafia się mniejszy, ale pewny lead.",
         "choices": [
-          {"label":"Biorę mniejszy lead","effects":{"finanse":2,"reputacja":1},"next":"feedback"},
-          {"label":"Skupiam się na marketingu","effects":{"reputacja":2},"next":"feedback"}
+          {
+            "label": "Biorę mniejszy lead",
+            "effects": {
+              "finanse": 2,
+              "reputacja": 1
+            },
+            "next": "feedback"
+          },
+          {
+            "label": "Skupiam się na marketingu",
+            "effects": {
+              "reputacja": 2
+            },
+            "next": "feedback"
+          }
         ]
       },
       "feedback": {
         "text": "Projekt kończy się. Co dalej?",
         "choices": [
-          {"label":"Proszę o publiczną opinię + case study","effects":{"reputacja":3},"next":"the_end"},
-          {"label":"Wystawiam fakturę i jadę dalej","effects":{"finanse":2},"next":"the_end"}
+          {
+            "label": "Proszę o publiczną opinię + case study",
+            "effects": {
+              "reputacja": 3
+            },
+            "next": "the_end"
+          },
+          {
+            "label": "Wystawiam fakturę i jadę dalej",
+            "effects": {
+              "finanse": 2
+            },
+            "next": "the_end"
+          }
         ]
       },
-      "the_end": { "text":"Koniec rozdziału. Możesz zacząć od nowa inną ścieżką.","choices":[] }
+      "the_end": {
+        "text": "Koniec rozdziału. Możesz zacząć od nowa inną ścieżką.",
+        "choices": []
+      }
     }
   },
   "Naukowiec": {
     "start": "lab_start",
     "nodes": {
       "lab_start": {
-        "text": "Masz grant na prototyp. Zespół chce szybko publikować, sponsor – demonstrację.",
+        "text": "Masz grant na prototyp. Zespół chce szybko publikować, sponsor — demonstrację.",
         "choices": [
-          {"label":"Publikacja najpierw","effects":{"reputacja":3,"finanse":-1},"next":"peer_review"},
-          {"label":"Demo dla sponsora","effects":{"finanse":3,"reputacja":1},"next":"demo_day"}
+          {
+            "label": "Publikacja najpierw",
+            "effects": {
+              "reputacja": 3,
+              "finanse": -1
+            },
+            "next": "peer_review"
+          },
+          {
+            "label": "Demo dla sponsora",
+            "effects": {
+              "finanse": 3,
+              "reputacja": 1
+            },
+            "next": "demo_day"
+          }
         ]
       },
       "peer_review": {
         "text": "Recenzje wymagają poprawek. Termin demo się zbliża.",
         "choices": [
-          {"label":"Nocny sprint na demo","effects":{"stres":3,"finanse":1},"next":"demo_day"},
-          {"label":"Proszę o przesunięcie","effects":{"reputacja":1,"finanse":0},"next":"demo_day"}
+          {
+            "label": "Nocny sprint na demo",
+            "effects": {
+              "stres": 3,
+              "finanse": 1
+            },
+            "next": "demo_day"
+          },
+          {
+            "label": "Proszę o przesunięcie",
+            "effects": {
+              "reputacja": 1,
+              "finanse": 0
+            },
+            "next": "demo_day"
+          }
         ]
       },
       "demo_day": {
         "text": "Demo wychodzi średnio, ale jest potencjał.",
         "choices": [
-          {"label":"Pivot w kierunku rynku medycznego","effects":{"reputacja":1,"finanse":2},"next":"the_end"},
-          {"label":"Publikuję open-source","effects":{"reputacja":3},"next":"the_end"}
+          {
+            "label": "Pivot do med",
+            "effects": {
+              "reputacja": 1,
+              "finanse": 2
+            },
+            "next": "the_end"
+          },
+          {
+            "label": "Publikuję open-source",
+            "effects": {
+              "reputacja": 3
+            },
+            "next": "the_end"
+          }
         ]
       },
-      "the_end": { "text":"Koniec rozdziału. Restart, by odkryć inne gałęzie.","choices":[] }
+      "the_end": {
+        "text": "Koniec rozdziału. Restart, by odkryć inne gałęzie.",
+        "choices": []
+      }
     }
   },
   "Podroznik": {
@@ -73,32 +193,90 @@
       "port_start": {
         "text": "Jesteś w porcie. Plotki mówią o skarbie w dżungli i sztormie na północy.",
         "choices": [
-          {"label":"Wyprawa do dżungli","effects":{"energia":-2,"reputacja":1},"next":"dzungla"},
-          {"label":"Płynę na północ (ryzyko sztormu)","effects":{"stres":2,"finanse":3},"next":"sztorm"}
+          {
+            "label": "Wyprawa do dżungli",
+            "effects": {
+              "energia": -2,
+              "reputacja": 1
+            },
+            "next": "dzungla"
+          },
+          {
+            "label": "Płynę na północ (ryzyko sztormu)",
+            "effects": {
+              "stres": 2,
+              "finanse": 3
+            },
+            "next": "sztorm"
+          }
         ]
       },
       "dzungla": {
         "text": "Zagubiona ścieżka. Trafiasz na ruiny.",
         "choices": [
-          {"label":"Badam ruiny (czas)","effects":{"energia":-1,"reputacja":2},"next":"artefakt"},
-          {"label":"Zawracam – za gorąco","effects":{"energia":1},"next":"the_end"}
+          {
+            "label": "Badam ruiny (czas)",
+            "effects": {
+              "energia": -1,
+              "reputacja": 2
+            },
+            "next": "artefakt"
+          },
+          {
+            "label": "Zawracam — za gorąco",
+            "effects": {
+              "energia": 1
+            },
+            "next": "the_end"
+          }
         ]
       },
       "sztorm": {
         "text": "Sztorm niszczy żagiel.",
         "choices": [
-          {"label":"Ratuję ładunek","effects":{"finanse":1,"energia":-1},"next":"the_end"},
-          {"label":"Ratuję załogę","effects":{"reputacja":3,"finanse":-2},"next":"the_end"}
+          {
+            "label": "Ratuję ładunek",
+            "effects": {
+              "finanse": 1,
+              "energia": -1
+            },
+            "next": "the_end"
+          },
+          {
+            "label": "Ratuję załogę",
+            "effects": {
+              "reputacja": 3,
+              "finanse": -2
+            },
+            "next": "the_end"
+          }
         ]
       },
       "artefakt": {
         "text": "Znajdujesz artefakt. Ktoś Cię obserwuje.",
         "choices": [
-          {"label":"Biorę i uciekam","effects":{"finanse":4,"reputacja":-1,"stres":2},"next":"the_end"},
-          {"label":"Zgłaszam do muzeum","effects":{"reputacja":4},"next":"the_end"}
+          {
+            "label": "Biorę i uciekam",
+            "effects": {
+              "finanse": 4,
+              "reputacja": -1,
+              "stres": 2
+            },
+            "next": "the_end"
+          },
+          {
+            "label": "Zgłaszam do muzeum",
+            "effects": {
+              "reputacja": 4
+            },
+            "next": "the_end"
+          }
         ]
       },
-      "the_end": { "text":"Koniec rozdziału. Kolejna podróż czeka.","choices":[] }
+      "the_end": {
+        "text": "Koniec rozdziału. Kolejna podróż czeka.",
+        "choices": []
+      }
     }
   }
 }
