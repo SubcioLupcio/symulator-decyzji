@@ -3,169 +3,187 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Symulator Decyzji – v0.1</title>
+  <title>Symulator Decyzji – Pełna wersja</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     html,body{margin:0;height:100%;background:#0e0e13;color:#eaeaea;font-family:Inter,Arial,sans-serif}
     #game{display:flex;align-items:center;justify-content:center;height:100vh}
-    .phaser-btn{background:#3b82f6;border:none;color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;cursor:pointer;margin:6px 0}
+    .phaser-btn{background:#3b82f6;border:none;color:#fff;padding:10px 18px;border-radius:10px;font-size:16px;cursor:pointer;margin:8px 0;font-weight:600}
     .phaser-btn:hover{filter:brightness(1.1)}
     canvas{image-rendering:optimizeQuality}
-    .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7);color:#fff;font-size:20px;z-index:10;visibility:hidden}
-    .overlay.show{visibility:visible}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
 </head>
 <body>
 <div id="game"></div>
-<div id="errorOverlay" class="overlay"></div>
 <script>
-const SAVE_KEY='sd_save_v0_1';
-const saveState=s=>localStorage.setItem(SAVE_KEY,JSON.stringify(s));
-const loadState=()=>{try{return JSON.parse(localStorage.getItem(SAVE_KEY))||null}catch(_){return null}};
-
-// simple SVG avatars
-const svg = {
-  postac1:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%232256ff'/><stop offset='1' stop-color='%236aa9ff'/></linearGradient></defs><rect width='100%25' height='100%25' fill='url(%23g)' rx='28'/><circle cx='128' cy='110' r='58' fill='white' opacity='0.95'/><rect x='60' y='165' width='136' height='56' rx='18' fill='white' opacity='0.9'/><circle cx='112' cy='102' r='6'/><circle cx='144' cy='102' r='6'/><rect x='116' y='118' width='24' height='6' rx='3'/></svg>`,
-  postac2:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%2309c372'/><stop offset='1' stop-color='%2390eab8'/></linearGradient></defs><rect width='100%25' height='100%25' fill='url(%23g2)' rx='28'/><polygon points='128,40 184,200 72,200' fill='white' opacity='0.95'/><circle cx='112' cy='120' r='5'/><circle cx='144' cy='120' r='5'/><rect x='118' y='136' width='20' height='6' rx='3'/></svg>`,
-  postac3:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><defs><linearGradient id='g3' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%23ff7a18'/><stop offset='1' stop-color='%23ffc371'/></linearGradient></defs><rect width='100%25' height='100%25' fill='url(%23g3)' rx='28'/><rect x='48' y='70' width='160' height='116' rx='22' fill='white' opacity='0.95'/><circle cx='100' cy='120' r='7'/><circle cx='156' cy='120' r='7'/><rect x='108' y='142' width='40' height='8' rx='4'/></svg>`
+/* ====== Save / Load ====== */
+const SAVE_KEY = 'sd_save_full';
+const saveState = s => localStorage.setItem(SAVE_KEY, JSON.stringify(s));
+const loadState = () => {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || null; }
+  catch { return null; }
 };
 
-function showError(msg){
-  const el=document.getElementById('errorOverlay');
-  el.textContent = msg + ' — odśwież stronę lub sprawdź plik scenarios.json';
-  el.classList.add('show');
-}
+/* ====== Avatary SVG jako data-URI ====== */
+const svg = {
+  postac1: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%232256ff"/><stop offset="1" stop-color="%236aa9ff"/></linearGradient></defs><rect width="100%" height="100%" fill="url(%23g)" rx="28"/><circle cx="128" cy="110" r="58" fill="white" opacity="0.95"/><rect x="60" y="165" width="136" height="56" rx="18" fill="white" opacity="0.9"/><circle cx="112" cy="102" r="6"/><circle cx="144" cy="102" r="6"/><rect x="116" y="118" width="24" height="6" rx="3"/></svg>',
+  postac2: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%2309c372"/><stop offset="1" stop-color="%2390eab8"/></linearGradient></defs><rect width="100%" height="100%" fill="url(%23g2)" rx="28"/><polygon points="128,40 184,200 72,200" fill="white" opacity="0.95"/><circle cx="112" cy="120" r="5"/><circle cx="144" cy="120" r="5"/><rect x="118" y="136" width="20" height="6" rx="3"/></svg>',
+  postac3: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><defs><linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23ff7a18"/><stop offset="1" stop-color="%23ffc371"/></linearGradient></defs><rect width="100%" height="100%" fill="url(%23g3)" rx="28"/><rect x="48" y="70" width="160" height="116" rx="22" fill="white" opacity="0.95"/><circle cx="100" cy="120" r="7"/><circle cx="156" cy="120" r="7"/><rect x="108" y="142" width="40" height="8" rx="4"/></svg>'
+};
 
-class BootScene extends Phaser.Scene{
-  constructor(){super('Boot');}
-  preload(){
-    const g=this.make.graphics({x:0,y:0,add:false});
-    const W=960,H=540; g.fillGradientStyle(0x111827,0x0f172a,0x0b1220,0x0b1220,1); g.fillRect(0,0,W,H); g.generateTexture('bg',W,H);
+/* ====== Boot Scene ====== */
+class BootScene extends Phaser.Scene {
+  constructor() { super('Boot'); }
+  preload() {
+    // avatary
     this.load.image('postac1', svg.postac1);
     this.load.image('postac2', svg.postac2);
     this.load.image('postac3', svg.postac3);
-    // cache-busting query
-    const v = '0.1';
-    this.load.json('SCENES','./scenarios.json?v='+v);
+    // wczytaj scenariusze
+    this.load.json('SCENES', 'scenarios.json');
   }
-  create(){
-    try{
-      const scenes=this.cache.json.get('SCENES');
-      if(!scenes) throw new Error('Brak danych scen');
-      this.registry.set('SCENES', scenes);
-      this.scene.start('Menu');
-    }catch(e){
-      console.error(e); showError('Błąd wczytywania scenariusza');
+  create() {
+    // gradientowe tło
+    const g = this.make.graphics({ x:0, y:0, add:false });
+    const W = 960, H = 540;
+    g.fillGradientStyle(0x111827, 0x0f172a, 0x0b1220, 0x0b1220, 1);
+    g.fillRect(0, 0, W, H);
+    g.generateTexture('bg', W, H);
+    const scenes = this.cache.json.get('SCENES');
+    if(!scenes) {
+      this.add.text(20, 20, 'Błąd wczytywania pliku scenarios.json', { fontSize:'20px', fill:'#f87171' });
+      return;
     }
+    this.registry.set('SCENES', scenes);
+    this.scene.start('Menu');
   }
 }
 
-class MenuScene extends Phaser.Scene{
-  constructor(){super('Menu');}
-  create(){
-    const w=this.scale.width,h=this.scale.height;
-    this.add.image(w/2,h/2,'bg');
-    this.add.dom(w/2, 70, 'div', 'font-size:44px;font-weight:800;color:#fff;text-align:center', 'Symulator Decyzji');
-    this.add.dom(w/2, 120,'div', 'font-size:20px;font-weight:600;color:#b9c4ff;text-align:center', 'Wybierz postać:');
-    const roles=['Przedsiebiorca','Naukowiec','Podroznik'];
-    const imgs=['postac1','postac2','postac3'];
-    const startX = w/2 - 310, y = 250;
-    roles.forEach((r,i)=>{
-      const x = startX + i*310;
-      const card = this.add.rectangle(x,y,280,340,0x151a2d,0.85).setStrokeStyle(2,0x3b82f6).setInteractive({useHandCursor:true});
-      this.add.image(x, y-40, imgs[i]).setDisplaySize(180,180).setDepth(2);
-      this.add.text(x, y+90, r, {fontSize:'18px', color:'#ffffff'}).setOrigin(0.5);
-      const btn = this.add.dom(x, y+130, 'button', 'class: phaser-btn', 'Graj').setDepth(3);
-      btn.addListener('click');
-      const startRole = ()=>{
-        const SC=this.registry.get('SCENES');
-        const state={role:r, node:SC[r].start, stats:{finanse:0,reputacja:0,stres:0,energia:10}};
+/* ====== Menu Scene ====== */
+class MenuScene extends Phaser.Scene {
+  constructor() { super('Menu'); }
+  create() {
+    const w = this.scale.width, h = this.scale.height;
+    this.add.image(w/2, h/2, 'bg');
+    // nagłówki
+    this.add.dom(w/2, 70, 'div', 'font-size:44px;font-weight:800;color:#ffffff;text-align:center', 'Symulator Decyzji');
+    this.add.dom(w/2, 120, 'div', 'font-size:20px;font-weight:600;color:#b9c4ff;text-align:center', 'Wybierz postać:');
+    const SC = this.registry.get('SCENES');
+    const roles = Object.keys(SC);
+    const images = ['postac1','postac2','postac3'];
+    const totalWidth = roles.length * 280 + (roles.length - 1) * 30;
+    const startX = (w - totalWidth) / 2 + 140;
+    roles.forEach((r,i) => {
+      const x = startX + i * (280 + 30);
+      const y = 260;
+      const card = this.add.rectangle(x, y, 280, 340, 0x151a2d, 0.85)
+        .setStrokeStyle(2, 0x3b82f6)
+        .setInteractive({ useHandCursor:true });
+      this.add.image(x, y-40, images[i]).setDisplaySize(180,180).setDepth(2);
+      this.add.text(x, y+90, r, { fontSize:'18px', color:'#ffffff' }).setOrigin(0.5);
+      const btn = this.add.dom(x, y+140, 'button', 'class: phaser-btn', 'Graj').setDepth(3);
+      const startRole = () => {
+        const state = { role:r, node:SC[r].start, stats:{ finanse:0, reputacja:0, stres:0, energia:10 } };
         saveState(state); this.scene.start('Game');
       };
-      btn.on('click', startRole);
+      btn.addListener('click'); btn.on('click', startRole);
       card.on('pointerup', startRole);
     });
-    const saved=loadState();
-    if(saved){
-      const cont=this.add.text(w/2, h-28, 'Kontynuuj ostatnią grę', {fontSize:'16px', color:'#7ef7c4'})
-        .setOrigin(0.5).setInteractive({useHandCursor:true});
-      cont.on('pointerup', ()=>this.scene.start('Game'));
+    const saved = loadState();
+    if(saved) {
+      const cont = this.add.text(w/2, h-28, 'Kontynuuj ostatnią grę', { fontSize:'16px', color:'#7ef7c4' })
+        .setOrigin(0.5).setInteractive({ useHandCursor:true });
+      cont.on('pointerup', () => this.scene.start('Game'));
     }
   }
 }
 
-class GameScene extends Phaser.Scene{
-  constructor(){super('Game');}
-  init(){ this.state = loadState(); }
-  create(){
-    const w=this.scale.width,h=this.scale.height;
-    this.add.image(w/2,h/2,'bg');
-    this.statsBox = this.add.rectangle(10,10, w-20, 66, 0x0b1020, 0.75).setOrigin(0,0);
-    this.statsText = this.add.text(18, 16, '', {fontSize:'16px', color:'#bfe1ff'});
-    this.bars = { finanse:this.add.graphics(), reputacja:this.add.graphics(), stres:this.add.graphics(), energia:this.add.graphics() };
-    this.panel = this.add.rectangle(w/2, h-175, w-40, 230, 0x151a2d, 0.9);
-    this.story = this.add.text(30, h-260, '', {fontSize:'18px', wordWrap:{width:w-60}});
-    const btnMenu = this.add.dom(w-110, 45, 'button', 'class: phaser-btn', 'Menu');
-    const btnRestart = this.add.dom(w-220, 45, 'button', 'class: phaser-btn', 'Restart');
-    btnMenu.addListener('click'); btnMenu.on('click', ()=> this.scene.start('Menu'));
-    btnRestart.addListener('click'); btnRestart.on('click', ()=>{ localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
+/* ====== Game Scene ====== */
+class GameScene extends Phaser.Scene {
+  constructor() { super('Game'); }
+  init() {
+    this.state = loadState() || null;
+    this.gameOverReason = null;
+  }
+  create() {
+    const w = this.scale.width, h = this.scale.height;
+    this.add.image(w/2, h/2, 'bg');
+    this.statsBox = this.add.rectangle(10, 10, w-20, 70, 0x0b1020, 0.7).setOrigin(0,0);
+    this.statsText = this.add.text(18, 18, '', { fontSize:'16px', color:'#bfe1ff' });
+    this.bars = { finanse: this.add.graphics(), reputacja: this.add.graphics(), stres: this.add.graphics(), energia: this.add.graphics() };
+    this.panel = this.add.rectangle(w/2, h-175, w-40, 240, 0x151a2d, 0.9);
+    this.story = this.add.text(30, h-260, '', { fontSize:'18px', wordWrap:{ width:w-60 } });
+    const menuBtn = this.add.dom(w-110, 48, 'button', 'class: phaser-btn', 'Menu');
+    const restartBtn = this.add.dom(w-230, 48, 'button', 'class: phaser-btn', 'Restart');
+    menuBtn.addListener('click'); menuBtn.on('click', () => { localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
+    restartBtn.addListener('click'); restartBtn.on('click', () => { localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
     this.choiceGroup = this.add.group();
     this.renderNode();
   }
-  drawBars(){
-    const baseX=18, baseY=40, w=this.scale.width-220, h=10, gap=14;
-    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-    const norm=v=>clamp(((v+10)/20)*100,0,100);
-    const S=this.state.stats;
-    const items=[['Finanse',S.finanse,this.bars.finanse,0x22c55e],['Reputacja',S.reputacja,this.bars.reputacja,0x3b82f6],['Stres',S.stres,this.bars.stres,0xef4444],['Energia',S.energia,this.bars.energia,0xf59e0b]];
-    items.forEach(([,val,g,color],i)=>{ g.clear(); g.fillStyle(0x23304a,1).fillRoundedRect(baseX, baseY + i*gap, w, h, 4); g.fillStyle(color,1).fillRoundedRect(baseX, baseY + i*gap, (w*((val+10)/20)), h, 4); });
+  drawBars() {
+    const baseX = 18, baseY = 40, barW = this.scale.width - 220, barH = 10, gap = 14;
+    const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+    const norm = v => clamp(((v + 10)/20)*100,0,100);
+    const S = this.state.stats;
+    const items = [
+      ['Finanse', S.finanse, this.bars.finanse, 0x22c55e],
+      ['Reputacja', S.reputacja, this.bars.reputacja, 0x3b82f6],
+      ['Stres', S.stres, this.bars.stres, 0xef4444],
+      ['Energia', S.energia, this.bars.energia, 0xf59e0b]
+    ];
+    items.forEach(([label,val,g,color],i) => {
+      g.clear();
+      g.fillStyle(0x23304a,1).fillRoundedRect(baseX, baseY + i*gap, barW, barH, 4);
+      g.fillStyle(color,1).fillRoundedRect(baseX, baseY + i*gap, barW * norm(val)/100, barH, 4);
+    });
   }
-  applyEffects(e){
-    this.state.stats.finanse   = (this.state.stats.finanse   || 0) + (e.finanse   || 0);
-    this.state.stats.reputacja = (this.state.stats.reputacja || 0) + (e.reputacja || 0);
-    this.state.stats.stres     = (this.state.stats.stres     || 0) + (e.stres     || 0);
-    this.state.stats.energia   = (this.state.stats.energia   || 0) + (e.energia   || 0);
-  }
-  checkEnd(){
-    const S=this.state.stats;
-    if(S.stres >= 12) return {type:'lose', msg:'Wypalenie. Zbyt duży stres.'};
-    if(S.finanse <= -6) return {type:'lose', msg:'Bankructwo. Skończyła się płynność.'};
-    if(S.energia <= -5) return {type:'lose', msg:'Wyczerpanie. Potrzebny odpoczynek.'};
-    if(S.reputacja >= 10) return {type:'win', msg:'Reputacja gwiazdy! Sukces społeczny.'};
-    if(S.finanse >= 10) return {type:'win', msg:'Stabilny zysk! Finansowy sukces.'};
-    return null;
-  }
-  gameOver(info){
-    const w=this.scale.width,h=this.scale.height;
+  renderNode() {
     this.choiceGroup.clear(true,true);
-    const title = info.type==='win' ? 'Wygrana!' : 'Koniec gry';
-    this.story.setText(title + '\n' + info.msg + '\n\nMożesz wrócić do menu i zacząć inną ścieżkę.');
-    const btn=this.add.dom(w/2, h-80, 'button', 'class: phaser-btn', 'Powrót do menu');
-    btn.addListener('click'); btn.on('click',()=> this.scene.start('Menu'));
-  }
-  renderNode(){
-    this.choiceGroup.clear(true,true);
-    const SC=this.registry.get('SCENES'); const {role,node,stats}=this.state; const data=SC[role].nodes[node];
-    if(!data){ this.story.setText('Błąd: brak węzła sceny.'); return; }
+    if(this.gameOverReason) {
+      this.story.setText('Gra zakończona: ' + this.gameOverReason);
+      const w = this.scale.width, h = this.scale.height;
+      const btn = this.add.dom(w/2, h-80, 'button', 'class: phaser-btn', 'Powrót do menu');
+      btn.addListener('click'); btn.on('click', () => { localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
+      this.choiceGroup.add(btn);
+      this.statsText.setText(`Finanse: ${this.state.stats.finanse}  Reputacja: ${this.state.stats.reputacja}  Stres: ${this.state.stats.stres}  Energia: ${this.state.stats.energia}`);
+      this.drawBars();
+      return;
+    }
+    const SC = this.registry.get('SCENES');
+    const { role, node, stats } = this.state;
+    const data = SC[role].nodes[node];
     this.story.setText(data.text);
     this.statsText.setText(`Postać: ${role}  |  Finanse: ${stats.finanse}  Reputacja: ${stats.reputacja}  Stres: ${stats.stres}  Energia: ${stats.energia}`);
     this.drawBars();
-    if(!data.choices.length){
-      const w=this.scale.width,h=this.scale.height;
-      const btn=this.add.dom(w/2,h-80,'button','class: phaser-btn','Powrót do menu');
-      btn.addListener('click'); btn.on('click',()=>this.scene.start('Menu')); this.choiceGroup.add(btn); return;
+    if(!data.choices.length) {
+      const w = this.scale.width, h = this.scale.height;
+      const btn = this.add.dom(w/2, h-80, 'button', 'class: phaser-btn', 'Powrót do menu');
+      btn.addListener('click'); btn.on('click', () => { localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
+      this.choiceGroup.add(btn);
+      return;
     }
-    const w=this.scale.width;
-    data.choices.forEach((c,i)=>{
-      const btn=this.add.dom(w/2, this.scale.height-130 + i*44, 'button','class: phaser-btn',c.label);
-      btn.addListener('click'); btn.on('click', ()=>{
-        this.applyEffects(c.effects||{});
-        const end=this.checkEnd();
-        if(end){ saveState(this.state); this.gameOver(end); return; }
-        this.state.node = c.next || 'the_end';
+    data.choices.forEach((choice,i) => {
+      const btn = this.add.dom(this.scale.width/2, this.scale.height - 130 + i*48, 'button', 'class: phaser-btn', choice.label);
+      btn.addListener('click');
+      btn.on('click', () => {
+        const eff = choice.effects || {};
+        this.state.stats.finanse   += (eff.finanse   || 0);
+        this.state.stats.reputacja += (eff.reputacja || 0);
+        this.state.stats.stres     += (eff.stres     || 0);
+        this.state.stats.energia   += (eff.energia   || 0);
+        // warunki końca gry
+        if(this.state.stats.energia <= -2) {
+          this.gameOverReason = 'Wyczerpanie (energia poniżej zera)';
+        } else if(this.state.stats.stres >= 10) {
+          this.gameOverReason = 'Wypalenie zawodowe (stres powyżej 10)';
+        } else if(this.state.stats.finanse <= -10) {
+          this.gameOverReason = 'Bankructwo (finanse poniżej -10)';
+        } else {
+          this.state.node = choice.next || 'the_end';
+        }
         saveState(this.state);
         this.renderNode();
       });
@@ -174,13 +192,16 @@ class GameScene extends Phaser.Scene{
   }
 }
 
-const config={
-  type:Phaser.AUTO, parent:'game', backgroundColor:'#0e0e13',
-  scale:{mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:960, height:540},
-  dom:{createContainer:true},
-  resolution:Math.min(window.devicePixelRatio||1,2),
-  render:{antialias:true, roundPixels:true, pixelArt:false},
-  scene:[BootScene, MenuScene, GameScene]
+/* ====== Konfiguracja gry ====== */
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game',
+  backgroundColor: '#0e0e13',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 960, height: 540 },
+  dom: { createContainer: true },
+  resolution: Math.min(window.devicePixelRatio || 1, 2),
+  render: { antialias:true, roundPixels:true, pixelArt:false },
+  scene: [BootScene, MenuScene, GameScene]
 };
 new Phaser.Game(config);
 </script>
