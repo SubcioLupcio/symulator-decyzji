@@ -175,3 +175,186 @@ new Phaser.Game(config);
 </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Symulator Decyzji – Phaser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    html,body{margin:0;height:100%;background:#0e0e13;color:#eaeaea;font-family:Inter,Arial,sans-serif}
+    #game{display:flex;align-items:center;justify-content:center;height:100vh}
+    .phaser-btn{background:#3b82f6;border:none;color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;cursor:pointer;margin:6px 0}
+    .phaser-btn:hover{filter:brightness(1.1)}
+    canvas{image-rendering:optimizeQuality}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
+</head>
+<body>
+<div id="game"></div>
+
+<script>
+/* ====== Save / Load ====== */
+const SAVE_KEY='sd_save_v2';
+const saveState=s=>localStorage.setItem(SAVE_KEY,JSON.stringify(s));
+const loadState=()=>{try{return JSON.parse(localStorage.getItem(SAVE_KEY))||null}catch(_){return null}};
+
+/* ====== Proste avatary SVG jako data-URI (bez żadnych plików) ====== */
+const svg = {
+  postac1:`data:image/svg+xml;utf8,
+  <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
+    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%232256ff'/><stop offset='1' stop-color='%236aa9ff'/></linearGradient></defs>
+    <rect width='100%%' height='100%%' fill='url(%23g)' rx='28'/>
+    <circle cx='128' cy='110' r='58' fill='white' opacity='0.95'/>
+    <rect x='60' y='165' width='136' height='56' rx='18' fill='white' opacity='0.9'/>
+    <circle cx='112' cy='102' r='6'/><circle cx='144' cy='102' r='6'/><rect x='116' y='118' width='24' height='6' rx='3'/>
+  </svg>`,
+  postac2:`data:image/svg+xml;utf8,
+  <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
+    <defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%2309c372'/><stop offset='1' stop-color='%2390eab8'/></linearGradient></defs>
+    <rect width='100%%' height='100%%' fill='url(%23g2)' rx='28'/>
+    <polygon points='128,40 184,200 72,200' fill='white' opacity='0.95'/>
+    <circle cx='112' cy='120' r='5'/><circle cx='144' cy='120' r='5'/><rect x='118' y='136' width='20' height='6' rx='3'/>
+  </svg>`,
+  postac3:`data:image/svg+xml;utf8,
+  <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
+    <defs><linearGradient id='g3' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%23ff7a18'/><stop offset='1' stop-color='%23ffc371'/></linearGradient></defs>
+    <rect width='100%%' height='100%%' fill='url(%23g3)' rx='28'/>
+    <rect x='48' y='70' width='160' height='116' rx='22' fill='white' opacity='0.95'/>
+    <circle cx='100' cy='120' r='7'/><circle cx='156' cy='120' r='7'/>
+    <rect x='108' y='142' width='40' height='8' rx='4'/>
+  </svg>`
+};
+
+/* ====== Boot: gradient tła + avatary + scenariusze JSON ====== */
+class BootScene extends Phaser.Scene{
+  constructor(){super('Boot');}
+  preload(){
+    // wygeneruj tło w canvasie
+    const g = this.make.graphics({x:0,y:0,add:false});
+    const W=960,H=540; g.fillGradientStyle(0x111827,0x0f172a,0x0b1220,0x0b1220,1);
+    g.fillRect(0,0,W,H);
+    g.generateTexture('bg',W,H);
+
+    // avatary
+    this.load.image('postac1', svg.postac1);
+    this.load.image('postac2', svg.postac2);
+    this.load.image('postac3', svg.postac3);
+
+    // scenariusze
+    this.load.json('SCENES','./scenarios.json');
+  }
+  create(){
+    const scenes = this.cache.json.get('SCENES');
+    if(!scenes){ this.add.text(20,20,'Brak pliku scenarios.json',{fontSize:'18px'}); return; }
+    this.registry.set('SCENES', scenes);
+    this.scene.start('Menu');
+  }
+}
+
+/* ====== Menu z kartami postaci ====== */
+class MenuScene extends Phaser.Scene{
+  constructor(){super('Menu');}
+  create(){
+    const w=this.scale.width,h=this.scale.height;
+    this.add.image(w/2,h/2,'bg');
+
+    // Nagłówki jako DOM (żyleta)
+    this.add.dom(w/2, 70, 'div', 'font-size:44px;font-weight:800;color:#fff;text-align:center', 'Symulator Decyzji');
+    this.add.dom(w/2, 120,'div', 'font-size:20px;font-weight:600;color:#b9c4ff;text-align:center', 'Wybierz postać:');
+
+    const roles=['Przedsiebiorca','Naukowiec','Podroznik'];
+    const imgs=['postac1','postac2','postac3'];
+
+    // siatka kart (środek ekranu)
+    const startX = w/2 - 310, y = 250;
+    roles.forEach((r,i)=>{
+      const x = startX + i*310;
+      // karta
+      const card = this.add.rectangle(x,y,280,340,0x151a2d,0.85).setStrokeStyle(2,0x3b82f6).setInteractive({useHandCursor:true});
+      // avatar
+      this.add.image(x, y-40, imgs[i]).setDisplaySize(180,180).setDepth(2);
+      // tytuł
+      this.add.text(x, y+90, r, {fontSize:'18px', color:'#ffffff'}).setOrigin(0.5);
+      // CTA
+      const btn = this.add.dom(x, y+130, 'button', 'class: phaser-btn', 'Graj').setDepth(3);
+      btn.addListener('click');
+      const startRole = ()=>{
+        const SC=this.registry.get('SCENES');
+        const state={role:r, node:SC[r].start, stats:{finanse:0,reputacja:0,stres:0,energia:10}};
+        saveState(state); this.scene.start('Game');
+      };
+      btn.on('click', startRole);
+      card.on('pointerup', startRole);
+    });
+
+    const saved = loadState();
+    if(saved){
+      const cont=this.add.text(w/2, h-28, 'Kontynuuj ostatnią grę', {fontSize:'16px', color:'#7ef7c4'})
+        .setOrigin(0.5).setInteractive({useHandCursor:true});
+      cont.on('pointerup', ()=>this.scene.start('Game'));
+    }
+  }
+}
+
+/* ====== Gra: statystyki + wybory ====== */
+class GameScene extends Phaser.Scene{
+  constructor(){super('Game');}
+  init(){ this.state = loadState(); }
+  create(){
+    const w=this.scale.width,h=this.scale.height;
+    this.add.image(w/2,h/2,'bg');
+
+    // Nagłówek + paski
+    this.statsBox = this.add.rectangle(10,10, w-20, 66, 0x0b1020, 0.75).setOrigin(0,0);
+    this.statsText = this.add.text(18, 16, '', {fontSize:'16px', color:'#bfe1ff'});
+    this.bars = { finanse:this.add.graphics(), reputacja:this.add.graphics(), stres:this.add.graphics(), energia:this.add.graphics() };
+
+    // Panel fabuły
+    this.panel = this.add.rectangle(w/2, h-175, w-40, 230, 0x151a2d, 0.9);
+    this.story = this.add.text(30, h-260, '', {fontSize:'18px', wordWrap:{width:w-60}});
+
+    // Przyciski globalne
+    const btnMenu = this.add.dom(w-110, 45, 'button', 'class: phaser-btn', 'Menu');
+    const btnRestart = this.add.dom(w-220, 45, 'button', 'class: phaser-btn', 'Restart');
+    btnMenu.addListener('click'); btnMenu.on('click', ()=> this.scene.start('Menu'));
+    btnRestart.addListener('click'); btnRestart.on('click', ()=>{ localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
+
+    this.choiceGroup = this.add.group();
+    this.renderNode();
+  }
+
+  drawBars(){
+    const baseX=18, baseY=40, w=this.scale.width-220, h=10, gap=14;
+    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+    const norm=v=>clamp(((v+10)/20)*100,0,100);
+    const S=this.state.stats;
+    const items=[
+      ['Finanse',S.finanse,this.bars.finanse,0x22c55e],
+      ['Reputacja',S.reputacja,this.bars.reputacja,0x3b82f6],
+      ['Stres',S.stres,this.bars.stres,0xef4444],
+      ['Energia',S.energia,this.bars.energia,0xf59e0b],
+    ];
+    items.forEach(([,val,g,color],i)=>{
+      g.clear();
+      g.fillStyle(0x23304a,1).fillRoundedRect(baseX, baseY + i*gap, w, h, 4);
+      g.fillStyle(color,1).fillRoundedRect(baseX, baseY + i*gap, (w*((val+10)/20)), h, 4);
+    });
+  }
+
+  renderNode(){
+    this.choiceGroup.clear(true,true);
+    const SC=this.registry.get('SCENES');
+    const {role,node,stats}=this.state;
+    const data=SC[role].nodes[node];
+
+    this.story.setText(data.text);
+    this.statsText.setText(`Postać: ${role}  |  Finanse: ${stats.finanse}  Reputacja: ${stats.reputacja}  Stres: ${stats.stres}  Energia: ${stats.energia}`);
+    this.drawBars();
+
+    if(!data.choices.length){
+      const w=this.scale.width,h=this.scale.height;
+      const btn=this.add.dom(w/2,h-80,'button','class: ph
