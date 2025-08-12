@@ -9,183 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     html,body{margin:0;height:100%;background:#0e0e13;color:#eaeaea;font-family:Inter,Arial,sans-serif}
-    #game {display:flex;align-items:center;justify-content:center;height:100vh}
-    .phaser-btn {background:#3b82f6;border:none;color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;cursor:pointer;margin:6px 0}
-    .phaser-btn:hover {filter:brightness(1.1)}
-    canvas{image-rendering:optimizeQuality}
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
-</head>
-<body>
-<div id="game"></div>
-<script>
-/* ====== Save / Load ====== */
-const SAVE_KEY = 'sd_save_v2';
-const saveState = s => localStorage.setItem(SAVE_KEY, JSON.stringify(s));
-const loadState = () => { try { return JSON.parse(localStorage.getItem(SAVE_KEY))||null } catch(_) { return null } };
-
-/* ====== Boot: wczytanie scenarios.json ====== */
-class BootScene extends Phaser.Scene {
-  constructor(){ super('Boot'); }
-  preload(){ }
-  create(){
-    fetch('./scenarios.json')
-      .then(r=>r.json())
-      .then(json => { this.registry.set('SCENES', json); this.scene.start('Menu'); })
-      .catch(err => {
-        console.error('Nie udało się wczytać scenarios.json', err);
-        this.add.text(20,20,'Błąd wczytywania scenariuszy. Sprawdź plik scenarios.json.',{fontSize:'18px'});
-      });
-  }
-}
-
-/* ====== Menu ====== */
-class MenuScene extends Phaser.Scene {
-  constructor(){ super('Menu'); }
-  create(){
-    const w=this.scale.width, h=this.scale.height;
-    this.add.rectangle(w/2,h/2,w,h,0x151826);
-
-    this.add.dom(w/2, 90, 'div','font-size:44px;font-weight:800;color:#fff;text-align:center','Symulator Decyzji');
-    this.add.dom(w/2,140, 'div','font-size:22px;font-weight:600;color:#b9c4ff;text-align:center','Wybierz postać:');
-
-    const SC = this.registry.get('SCENES');
-    const roles = Object.keys(SC);
-
-    roles.forEach((r,i)=>{
-      const y = 200 + i*70;
-      const btn = this.add.rectangle(w/2, y, 280, 46, 0x3b82f6).setInteractive({useHandCursor:true});
-      this.add.text(w/2, y, r, {fontSize:'18px'}).setOrigin(0.5);
-      btn.on('pointerup', ()=>{
-        const state = { role:r, node:SC[r].start, stats:{finanse:0, reputacja:0, stres:0, energia:10} };
-        saveState(state);
-        this.scene.start('Game');
-      });
-    });
-
-    const saved = loadState();
-    if(saved){
-      const cont = this.add.text(w/2, h-40, 'Kontynuuj ostatnią grę', {fontSize:'16px', color:'#7ef7c4'})
-        .setOrigin(0.5).setInteractive({useHandCursor:true});
-      cont.on('pointerup', ()=> this.scene.start('Game'));
-    }
-  }
-}
-
-/* ====== Gra ====== */
-class GameScene extends Phaser.Scene {
-  constructor(){ super('Game'); }
-  init(){ this.state = loadState(); }
-  create(){
-    const w=this.scale.width, h=this.scale.height;
-    this.bg = this.add.rectangle(w/2,h/2,w,h,0x0f1220);
-
-    // Paski statystyk
-    this.statsBox = this.add.rectangle(10,10, w-20, 60, 0x14192b, 0.7).setOrigin(0,0);
-    this.statsText = this.add.text(18, 18, '', {fontSize:'16px', color:'#bfe1ff'});
-
-    this.bars = { finanse:this.add.graphics(), reputacja:this.add.graphics(), stres:this.add.graphics(), energia:this.add.graphics() };
-
-    // Panel fabuły
-    this.panel = this.add.rectangle(w/2, h-175, w-40, 230, 0x151a2d, 0.9);
-    this.story = this.add.text(30, h-260, '', {fontSize:'18px', wordWrap:{width:w-60}});
-
-    // Przyciski akcji
-    this.choiceGroup = this.add.group();
-
-    // Menu/Restart
-    const btnMenu = this.add.dom(w-110, 45, 'button', 'class: phaser-btn', 'Menu');
-    const btnRestart = this.add.dom(w-220, 45, 'button', 'class: phaser-btn', 'Restart');
-    btnMenu.addListener('click'); btnMenu.on('click', ()=> this.scene.start('Menu'));
-    btnRestart.addListener('click'); btnRestart.on('click', ()=>{ localStorage.removeItem(SAVE_KEY); this.scene.start('Menu'); });
-
-    this.renderNode();
-  }
-
-  // narysuj paski (skala -10..+10 → 0..100)
-  drawBars(){
-    const baseX = 18, baseY = 40, w = this.scale.width - 220, h = 10, gap = 14;
-    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
-    const norm = v => clamp(((v+10)/20)*100,0,100);
-
-    const S = this.state.stats;
-    const items = [
-      ['Finanse', S.finanse, this.bars.finanse, 0x22c55e],
-      ['Reputacja', S.reputacja, this.bars.reputacja, 0x3b82f6],
-      ['Stres', S.stres, this.bars.stres, 0xef4444],
-      ['Energia', S.energia, this.bars.energia, 0xf59e0b]
-    ];
-
-    items.forEach((it, i)=>{
-      const [label, val, g, color] = it;
-      g.clear();
-      g.fillStyle(0x23304a, 1).fillRoundedRect(baseX, baseY + i*gap, w, h, 4);
-      g.fillStyle(color, 1).fillRoundedRect(baseX, baseY + i*gap, (w*norm(val))/100, h, 4);
-    });
-  }
-
-  renderNode(){
-    this.choiceGroup.clear(true, true);
-    const SC = this.registry.get('SCENES');
-    const { role, node, stats } = this.state;
-    const data = SC[role].nodes[node];
-
-    this.story.setText(data.text);
-    this.statsText.setText(`Postać: ${role}  |  Finanse: ${stats.finanse}  Reputacja: ${stats.reputacja}  Stres: ${stats.stres}  Energia: ${stats.energia}`);
-    this.drawBars();
-
-    if(!data.choices.length){
-      const w=this.scale.width, h=this.scale.height;
-      const btn = this.add.dom(w/2, h-80, 'button', 'class: phaser-btn', 'Powrót do menu');
-      btn.addListener('click'); btn.on('click', ()=> this.scene.start('Menu'));
-      this.choiceGroup.add(btn); return;
-    }
-
-    const w=this.scale.width;
-    data.choices.forEach((c,i)=>{
-      const btn = this.add.dom(w/2, this.scale.height-130 + i*44, 'button', 'class: phaser-btn', c.label);
-      btn.addListener('click');
-      btn.on('click', ()=>{
-        const e = c.effects || {};
-        this.state.stats.finanse   = (this.state.stats.finanse   || 0) + (e.finanse   || 0);
-        this.state.stats.reputacja = (this.state.stats.reputacja || 0) + (e.reputacja || 0);
-        this.state.stats.stres     = (this.state.stats.stres     || 0) + (e.stres     || 0);
-        this.state.stats.energia   = (this.state.stats.energia   || 0) + (e.energia   || 0);
-        this.state.node = c.next || 'the_end';
-        saveState(this.state);
-        this.renderNode();
-      });
-      this.choiceGroup.add(btn);
-    });
-  }
-}
-
-/* ====== Konfiguracja gry ====== */
-const config = {
-  type: Phaser.AUTO,
-  parent: 'game',
-  backgroundColor: '#0e0e13',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 960, height: 540 },
-  dom: { createContainer: true },
-  resolution: Math.min(window.devicePixelRatio || 1, 2),
-  render: { antialias: true, roundPixels: true, pixelArt: false },
-  scene: [BootScene, MenuScene, GameScene]
-};
-new Phaser.Game(config);
-</script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Symulator Decyzji – Phaser</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    html,body{margin:0;height:100%;background:#0e0e13;color:#eaeaea;font-family:Inter,Arial,sans-serif}
     #game{display:flex;align-items:center;justify-content:center;height:100vh}
     .phaser-btn{background:#3b82f6;border:none;color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;cursor:pointer;margin:6px 0}
     .phaser-btn:hover{filter:brightness(1.1)}
@@ -357,4 +180,41 @@ class GameScene extends Phaser.Scene{
 
     if(!data.choices.length){
       const w=this.scale.width,h=this.scale.height;
-      const btn=this.add.dom(w/2,h-80,'button','class: ph
+      const btn=this.add.dom(w/2,h-80,'button','class: phaser-btn','Powrót do menu');
+      btn.addListener('click'); btn.on('click',()=>this.scene.start('Menu'));
+      this.choiceGroup.add(btn); return;
+    }
+
+    const w=this.scale.width;
+    data.choices.forEach((c,i)=>{
+      const btn=this.add.dom(w/2, this.scale.height-130 + i*44, 'button','class: phaser-btn',c.label);
+      btn.addListener('click'); btn.on('click', ()=>{
+        const e=c.effects||{};
+        this.state.stats.finanse   = (this.state.stats.finanse   || 0) + (e.finanse   || 0);
+        this.state.stats.reputacja = (this.state.stats.reputacja || 0) + (e.reputacja || 0);
+        this.state.stats.stres     = (this.state.stats.stres     || 0) + (e.stres     || 0);
+        this.state.stats.energia   = (this.state.stats.energia   || 0) + (e.energia   || 0);
+        this.state.node = c.next || 'the_end';
+        saveState(this.state);
+        this.renderNode();
+      });
+      this.choiceGroup.add(btn);
+    });
+  }
+}
+
+/* ====== Konfiguracja ====== */
+const config={
+  type:Phaser.AUTO,
+  parent:'game',
+  backgroundColor:'#0e0e13',
+  scale:{mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:960, height:540},
+  dom:{createContainer:true},
+  resolution:Math.min(window.devicePixelRatio||1,2),
+  render:{antialias:true, roundPixels:true, pixelArt:false},
+  scene:[BootScene, MenuScene, GameScene]
+};
+new Phaser.Game(config);
+</script>
+</body>
+</html>
