@@ -1,55 +1,228 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Symulator Decyzji</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #111;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }
-        button {
-            margin: 10px;
-            padding: 15px 25px;
-            font-size: 18px;
-            cursor: pointer;
-            background-color: #28a745;
-            border: none;
-            color: white;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .result {
-            margin-top: 20px;
-            font-size: 20px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Symulator Decyzji – Prototype (Phaser)</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0e0e13;color:#eaeaea;font-family:Inter,Arial,sans-serif}
+    #game {display:flex;align-items:center;justify-content:center;height:100vh}
+    .phaser-btn {background:#3b82f6;border:none;color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;cursor:pointer;margin:6px 0}
+    .phaser-btn:hover {filter:brightness(1.1)}
+  </style>
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
 </head>
 <body>
-    <h1>Symulator Decyzji</h1>
-    <p>Wybierz swoją decyzję i zobacz, co się stanie!</p>
+<div id="game"></div>
 
-    <button onclick="makeDecision('Pomagam sąsiadowi')">Pomagam sąsiadowi</button>
-    <button onclick="makeDecision('Ignoruję sytuację')">Ignoruję sytuację</button>
-    <button onclick="makeDecision('Robię psikusa')">Robię psikusa</button>
+<script>
+/* ========= Helpers ========= */
+const SAVE_KEY = 'sd_save_v1';
+function saveState(state){ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+function loadState(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY))||null; }catch(e){ return null; } }
 
-    <div class="result" id="result"></div>
+/* ========= Scenariusze (na start w kodzie; później przeniesiemy do JSON) ========= */
+const SCENES = {
+  Przedsiebiorca: {
+    start: 'biuro_start',
+    nodes: {
+      'biuro_start': {
+        text: 'Dostajesz pierwszego dużego klienta. Składa trudną propozycję: szybki termin i niska cena.',
+        choices: [
+          {label:'Biorę, jadę po portfolio', effects:{finanse:+5, stres:+3, reputacja:+2}, next:'deadline'},
+          {label:'Negocjuję warunki', effects:{finanse:+2, stres:+1, reputacja:+3}, next:'negocjacje'},
+          {label:'Odrzucam – za duże ryzyko', effects:{finanse:-1, stres:-1, reputacja:+1}, next:'spokojny_tydzien'}
+        ]
+      },
+      'deadline': {
+        text:'Termin goni. Pracujesz nocami. Zespół jest zmęczony.',
+        choices:[
+          {label:'Dowozimy kosztem jakości', effects:{reputacja:-3, finanse:+3, stres:+2}, next:'feedback'},
+          {label:'Przesuwam termin i biorę ogień na klatę', effects:{reputacja:+1, finanse:0, stres:+1}, next:'feedback'}
+        ]
+      },
+      'negocjacje': {
+        text:'Klient zgadza się na +15% i dzień więcej.',
+        choices:[
+          {label:'Biorę i planuję sprint z buforem', effects:{finanse:+4, reputacja:+2, stres:+1}, next:'feedback'}
+        ]
+      },
+      'spokojny_tydzien': {
+        text:'Masz czas na procesy i sprzedaż. Trafia się mniejszy, ale pewny lead.',
+        choices:[
+          {label:'Biorę mniejszy lead', effects:{finanse:+2, reputacja:+1}, next:'feedback'},
+          {label:'Skupiam się na marketingu', effects:{reputacja:+2}, next:'feedback'}
+        ]
+      },
+      'feedback': {
+        text:'Projekt kończy się. Co dalej?',
+        choices:[
+          {label:'Proszę o publiczną opinię + case study', effects:{reputacja:+3}, next:'the_end'},
+          {label:'Wystawiam fakturę i jadę dalej', effects:{finanse:+2}, next:'the_end'}
+        ]
+      },
+      'the_end': { text:'Koniec rozdziału. Możesz zacząć od nowa inną ścieżką.', choices:[] }
+    }
+  },
+  Naukowiec: {
+    start:'lab_start',
+    nodes:{
+      'lab_start':{
+        text:'Masz grant na prototyp. Zespół chce szybko publikować, sponsor – demonstrację.',
+        choices:[
+          {label:'Publikacja najpierw', effects:{reputacja:+3, finanse:-1}, next:'peer_review'},
+          {label:'Demo dla sponsora', effects:{finanse:+3, reputacja:+1}, next:'demo_day'}
+        ]
+      },
+      'peer_review':{
+        text:'Recenzje wymagają poprawek. Termin demo się zbliża.',
+        choices:[
+          {label:'Biorę nocny sprint na demo', effects:{stres:+3, finanse:+1}, next:'demo_day'},
+          {label:'Prosze o przesunięcie', effects:{reputacja:+1, finanse:0}, next:'demo_day'}
+        ]
+      },
+      'demo_day':{
+        text:'Demo wychodzi średnio, ale jest potencjał.',
+        choices:[
+          {label:'Pivot w kierunku rynku medycznego', effects:{reputacja:+1, finanse:+2}, next:'the_end'},
+          {label:'Dopracowuję i publikuję open-source', effects:{reputacja:+3}, next:'the_end'}
+        ]
+      },
+      'the_end':{text:'Koniec rozdziału. Restart, by odkryć inne gałęzie.', choices:[]}
+    }
+  },
+  Podroznik: {
+    start:'port_start',
+    nodes:{
+      'port_start':{
+        text:'Jesteś w porcie. Plotki mówią o skarbie w dżungli i sztormie na północy.',
+        choices:[
+          {label:'Wyprawa do dżungli', effects:{energia:-2, reputacja:+1}, next:'dzungla'},
+          {label:'Płynę na północ (ryzyko sztormu)', effects:{stres:+2, finanse:+3}, next:'sztorm'}
+        ]
+      },
+      'dzungla':{
+        text:'Zagubiona ścieżka. Trafiasz na ruiny.',
+        choices:[
+          {label:'Badam ruiny (czas)', effects:{energia:-1, reputacja:+2}, next:'artefakt'},
+          {label:'Zawracam – za gorąco', effects:{energia:+1}, next:'the_end'}
+        ]
+      },
+      'sztorm':{
+        text:'Sztorm niszczy żagiel.',
+        choices:[
+          {label:'Ratuję ładunek', effects:{finanse:+1, energia:-1}, next:'the_end'},
+          {label:'Ratuję załogę', effects:{reputacja:+3, finanse:-2}, next:'the_end'}
+        ]
+      },
+      'artefakt':{
+        text:'Znajdujesz artefakt. Ktoś Cię obserwuje.',
+        choices:[
+          {label:'Biorę i uciekam', effects:{finanse:+4, reputacja:-1, stres:+2}, next:'the_end'},
+          {label:'Zgłaszam do muzeum', effects:{reputacja:+4}, next:'the_end'}
+        ]
+      },
+      'the_end':{text:'Koniec rozdziału. Kolejna podróż czeka.', choices:[]}
+    }
+  }
+};
 
-    <script>
-        function makeDecision(choice) {
-            let outcomes = {
-                "Pomagam sąsiadowi": "Sąsiad jest wdzięczny i zaprasza Cię na kawę ☕",
-                "Ignoruję sytuację": "Nic się nie dzieje, ale czujesz lekki dyskomfort 🤷‍♂️",
-                "Robię psikusa": "Sąsiad jest wkurzony i opowiada o tym całej wiosce 😅"
-            };
-            document.getElementById("result").innerText = outcomes[choice];
-        }
-    </script>
+/* ========= Sceny ========= */
+class MenuScene extends Phaser.Scene {
+  constructor(){ super('Menu'); }
+  create(){
+    const w = this.scale.width, h = this.scale.height;
+    this.add.rectangle(w/2, h/2, w, h, 0x151826);
+    this.add.text(w/2, 90, 'Symulator Decyzji', {fontSize:'36px', color:'#ffffff'}).setOrigin(0.5);
+    this.add.text(w/2, 140, 'Wybierz postać:', {fontSize:'20px', color:'#b9c4ff'}).setOrigin(0.5);
+    const roles = ['Przedsiebiorca','Naukowiec','Podroznik'];
+    roles.forEach((r,i)=>{
+      const y = 200 + i*70;
+      const btn = this.add.rectangle(w/2, y, 260, 46, 0x3b82f6, 1).setInteractive({useHandCursor:true});
+      this.add.text(w/2, y, r, {fontSize:'18px'}).setOrigin(0.5);
+      btn.on('pointerup', ()=>{
+        const state = { role:r, node:SCENES[r].start, stats:{finanse:0, reputacja:0, stres:0, energia:10} };
+        saveState(state);
+        this.scene.start('Game');
+      });
+    });
+
+    // Kontynuuj jeśli jest zapis
+    const saved = loadState();
+    if(saved){
+      const cont = this.add.text(w/2, h-40, 'Kontynuuj ostatnią grę', {fontSize:'16px', color:'#7ef7c4'})
+        .setOrigin(0.5).setInteractive({useHandCursor:true});
+      cont.on('pointerup', ()=> this.scene.start('Game'));
+    }
+  }
+}
+
+class GameScene extends Phaser.Scene {
+  constructor(){ super('Game'); }
+  init(){ this.state = loadState(); }
+  create(){
+    const w = this.scale.width, h = this.scale.height;
+    this.add.rectangle(w/2, h/2, w, h, 0x0f1220);
+    this.statsText = this.add.text(16, 12, '', {fontSize:'16px', color:'#9bd1ff'});
+
+    this.panel = this.add.rectangle(w/2, h-170, w-40, 220, 0x151a2d, 0.9);
+    this.story = this.add.text(30, h-255, '', {fontSize:'18px', wordWrap:{width:w-60}});
+
+    this.choiceGroup = this.add.group();
+    this.renderNode();
+  }
+
+  renderNode(){
+    // wyczyść poprzednie przyciski
+    this.choiceGroup.clear(true, true);
+
+    const { role, node, stats } = this.state;
+    const data = SCENES[role].nodes[node];
+    this.story.setText(data.text);
+    this.statsText.setText(`Postać: ${role}   Finanse: ${stats.finanse}   Reputacja: ${stats.reputacja}   Stres: ${stats.stres}   Energia: ${stats.energia}`);
+
+    if(!data.choices.length){
+      const w = this.scale.width, h = this.scale.height;
+      const btn = this.add.dom(w/2, h-80, 'button', 'class: phaser-btn', 'Powrót do menu');
+      btn.addListener('click');
+      btn.on('click', ()=>{ this.scene.start('Menu'); });
+      this.choiceGroup.add(btn);
+      return;
+    }
+
+    // Render przycisków wyboru
+    const w = this.scale.width;
+    data.choices.forEach((c, i)=>{
+      const btn = this.add.dom(w/2, this.scale.height-130 + i*44, 'button', 'class: phaser-btn', c.label);
+      btn.addListener('click');
+      btn.on('click', ()=>{
+        // Zastosuj efekty
+        const e = c.effects || {};
+        this.state.stats.finanse = (this.state.stats.finanse || 0) + (e.finanse || 0);
+        this.state.stats.reputacja = (this.state.stats.reputacja || 0) + (e.reputacja || 0);
+        this.state.stats.stres = (this.state.stats.stres || 0) + (e.stres || 0);
+        this.state.stats.energia = (this.state.stats.energia || 0) + (e.energia || 0);
+        // Przejdź do następnego węzła
+        this.state.node = c.next || 'the_end';
+        saveState(this.state);
+        this.renderNode();
+      });
+      this.choiceGroup.add(btn);
+    });
+  }
+}
+
+/* ========= Konfiguracja gry ========= */
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game',
+  backgroundColor: '#0e0e13',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 960, height: 540 },
+  dom: { createContainer: true },
+  scene: [MenuScene, GameScene]
+};
+new Phaser.Game(config);
+</script>
 </body>
 </html>
